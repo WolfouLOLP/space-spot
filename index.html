@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contrôle Stellaire Interactif</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background: #000;
+            color: white;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .ui-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: linear-gradient(135deg, rgba(20, 20, 50, 0.95), rgba(50, 20, 70, 0.95));
+            border: 2px solid rgba(138, 43, 226, 0.5);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 0 40px rgba(138, 43, 226, 0.4);
+            pointer-events: auto;
+            min-width: 320px;
+            transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            cursor: move;
+        }
+
+        .control-panel.hidden {
+            transform: translateX(-400px);
+        }
+
+        .control-panel.dragging {
+            transition: none;
+            cursor: grabbing;
+        }
+
+        .toggle-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, rgba(138, 43, 226, 0.9), rgba(0, 255, 255, 0.9));
+            border: 2px solid rgba(138, 43, 226, 0.5);
+            border-radius: 50%;
+            cursor: pointer;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            transition: all 0.3s;
+            box-shadow: 0 0 30px rgba(138, 43, 226, 0.6);
+            z-index: 100;
+        }
+
+        .toggle-btn:hover {
+            transform: scale(1.1) rotate(180deg);
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.8);
+        }
+
+        .toggle-btn.panel-open {
+            left: 370px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 1.8em;
+            background: linear-gradient(90deg, #fff, #8a2be2, #00ffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(138, 43, 226, 0.5);
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            font-size: 0.7em;
+            color: #aaa;
+            letter-spacing: 2px;
+        }
+
+        .control-group {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(138, 43, 226, 0.3);
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            color: #00ffff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .control-value {
+            color: #8a2be2;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, #8a2be2, #00ffff);
+            border-radius: 5px;
+            outline: none;
+            pointer-events: auto;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(138, 43, 226, 0.8);
+            transition: all 0.3s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 1);
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            background: linear-gradient(135deg, rgba(138, 43, 226, 0.3), rgba(0, 255, 255, 0.3));
+            border: 2px solid rgba(138, 43, 226, 0.5);
+            color: white;
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85em;
+            transition: all 0.3s;
+            pointer-events: auto;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button:before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        button:hover:before {
+            width: 300px;
+            height: 300px;
+        }
+
+        button:hover {
+            border-color: #00ffff;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        button.active {
+            background: linear-gradient(135deg, rgba(138, 43, 226, 0.8), rgba(0, 255, 255, 0.8));
+            border-color: #00ffff;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(138, 43, 226, 0.3);
+            border-radius: 10px;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .mode-btn:hover {
+            border-color: #8a2be2;
+            transform: scale(1.05);
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #8a2be2, #00ffff);
+            border-color: #00ffff;
+            box-shadow: 0 0 25px rgba(138, 43, 226, 0.6);
+        }
+
+        .stats-panel {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, rgba(20, 20, 50, 0.95), rgba(50, 20, 70, 0.95));
+            border: 2px solid rgba(138, 43, 226, 0.5);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 0 40px rgba(138, 43, 226, 0.4);
+            pointer-events: auto;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            display: flex;
+            gap: 30px;
+        }
+
+        .stats-panel.hidden {
+            transform: translate(-50%, -150px);
+            opacity: 0;
+        }
+
+        .stat-item {
+            margin: 8px 0;
+            font-size: 0.9em;
+        }
+
+        .stat-label {
+            color: #00ffff;
+            margin-right: 10px;
+        }
+
+        .stat-value {
+            color: #8a2be2;
+            font-weight: bold;
+        }
+
+        .instructions {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, rgba(20, 20, 50, 0.95), rgba(50, 20, 70, 0.95));
+            border: 2px solid rgba(138, 43, 226, 0.5);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 0 40px rgba(138, 43, 226, 0.4);
+            max-width: 300px;
+            pointer-events: auto;
+            transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .instructions.hidden {
+            transform: translateX(400px);
+        }
+
+        .instructions h3 {
+            color: #00ffff;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .instructions p {
+            font-size: 0.8em;
+            line-height: 1.6;
+            color: #ddd;
+            margin: 8px 0;
+        }
+
+        .color-picker {
+            width: 100%;
+            height: 40px;
+            border: 2px solid rgba(138, 43, 226, 0.5);
+            border-radius: 10px;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        .hide-ui-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, rgba(138, 43, 226, 0.3), rgba(0, 255, 255, 0.3));
+            border: 2px solid rgba(138, 43, 226, 0.5);
+            padding: 15px 25px;
+            border-radius: 12px;
+            cursor: pointer;
+            pointer-events: auto;
+            font-family: 'Orbitron', sans-serif;
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .hide-ui-btn:hover {
+            background: linear-gradient(135deg, rgba(138, 43, 226, 0.6), rgba(0, 255, 255, 0.6));
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+        }
+
+        .show-ui-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(138, 43, 226, 0.95), rgba(0, 255, 255, 0.95));
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            padding: 30px 50px;
+            font-size: 1.5em;
+            color: white;
+            text-align: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 1000;
+            box-shadow: 0 0 50px rgba(138, 43, 226, 0.8);
+        }
+
+        .show-ui-indicator.visible {
+            opacity: 1;
+        }
+
+        .show-ui-indicator p {
+            margin: 10px 0;
+            font-size: 0.8em;
+            color: #ddd;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="ui-container">
+        <div class="toggle-btn" id="toggleBtn">⚙️</div>
+
+        <div class="control-panel" id="controlPanel">
+            <div class="header">
+                <h1>✨ STELLAR CONTROL</h1>
+                <div class="subtitle">SYSTÈME DE CONTRÔLE</div>
+            </div>
+
+            <div class="mode-selector">
+                <div class="mode-btn active" id="createMode">
+                    <div>⭐</div>
+                    <div style="font-size: 0.7em; margin-top: 5px;">ÉTOILE</div>
+                </div>
+                <div class="mode-btn" id="moveMode">
+                    <div>👆</div>
+                    <div style="font-size: 0.7em; margin-top: 5px;">DÉPLACER</div>
+                </div>
+                <div class="mode-btn" id="deleteMode">
+                    <div>💥</div>
+                    <div style="font-size: 0.7em; margin-top: 5px;">SUPPRIMER</div>
+                </div>
+            </div>
+
+            <div class="mode-selector">
+                <div class="mode-btn" id="planetMode">
+                    <div>🪐</div>
+                    <div style="font-size: 0.7em; margin-top: 5px;">PLANÈTE</div>
+                </div>
+                <div class="mode-btn" id="blackholeMode">
+                    <div>🌑</div>
+                    <div style="font-size: 0.7em; margin-top: 5px;">TROU NOIR</div>
+                </div>
+                <div class="mode-btn" id="cometMode">
+                    <div>☄️</div>
+                    <div style="font-size: 0.7em; margin-top: 5px;">COMÈTE</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Nombre d'étoiles</span>
+                    <span class="control-value" id="starCountValue">500</span>
+                </div>
+                <input type="range" id="starCount" min="50" max="2000" value="500">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Taille</span>
+                    <span class="control-value" id="sizeValue">2.0</span>
+                </div>
+                <input type="range" id="starSize" min="0.5" max="5" step="0.1" value="2">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Vitesse rotation</span>
+                    <span class="control-value" id="speedValue">1.0</span>
+                </div>
+                <input type="range" id="rotationSpeed" min="0" max="5" step="0.1" value="1">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Couleur</span>
+                </div>
+                <input type="color" class="color-picker" id="starColor" value="#ffffff">
+            </div>
+
+            <div class="button-grid">
+                <button id="gravityBtn">Gravité: OFF</button>
+                <button id="trailsBtn">Traînées: OFF</button>
+                <button id="planetsBtn">Planètes: OFF</button>
+                <button id="explosionBtn">💥 Explosion</button>
+                <button id="spiralBtn">🌀 Spirale</button>
+                <button id="galaxyBtn">🌌 Galaxie</button>
+                <button id="solarBtn">☀️ Système</button>
+                <button id="resetBtn">🔄 Reset</button>
+            </div>
+        </div>
+
+        <div class="stats-panel" id="statsPanel">
+            <div class="stat-item">
+                <span class="stat-label">ÉTOILES:</span>
+                <span class="stat-value" id="totalStars">500</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">PLANÈTES:</span>
+                <span class="stat-value" id="totalPlanets">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">TROUS NOIRS:</span>
+                <span class="stat-value" id="totalBlackholes">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">COMÈTES:</span>
+                <span class="stat-value" id="totalComets">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">FPS:</span>
+                <span class="stat-value" id="fps">60</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">MODE:</span>
+                <span class="stat-value" id="currentMode">ÉTOILE</span>
+            </div>
+        </div>
+
+        <div class="instructions" id="instructions">
+            <h3>🎮 CONTRÔLES</h3>
+            <p><strong>CRÉER:</strong> Cliquez pour ajouter des étoiles</p>
+            <p><strong>DÉPLACER:</strong> Glissez les objets avec la souris</p>
+            <p><strong>SUPPRIMER:</strong> Cliquez sur les objets</p>
+            <p><strong>PLANÈTE:</strong> Créez des planètes lançables</p>
+            <p><strong>TROU NOIR:</strong> Aspire tout autour</p>
+            <p><strong>COMÈTE:</strong> Crée des comètes rapides</p>
+            <p><strong>Touches:</strong> H (cacher), C/M/D, G/T/P, ESPACE</p>
+        </div>
+
+        <button class="hide-ui-btn" id="hideBtn">👁️ CACHER L'INTERFACE</button>
+    </div>
+
+    <div class="show-ui-indicator" id="showIndicator">
+        <div>🌟 INTERFACE CACHÉE 🌟</div>
+        <p>Appuyez sur H ou double-cliquez pour afficher</p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let stars = [];
+        let planets = [];
+        let blackholes = [];
+        let comets = [];
+        let explosions = [];
+        let mode = 'create';
+        let starSize = 2;
+        let starColor = '#ffffff';
+        let rotationSpeed = 1;
+        let gravity = false;
+        let trails = false;
+        let showPlanets = false;
+        let mouseDown = false;
+        let selectedObject = null;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let mouseX = 0;
+        let mouseY = 0;
+        let centerX = canvas.width / 2;
+        let centerY = canvas.height / 2;
+        let lastTime = Date.now();
+        let fps = 0;
+        let panelOpen = true;
+        let uiVisible = true;
+        let isDraggingPanel = false;
+        let panelOffsetX = 0;
+        let panelOffsetY = 0;
+        let panelX = 20;
+        let panelY = 20;
+
+        class Star {
+            constructor(x, y, size, color) {
+                this.x = x;
+                this.y = y;
+                this.size = size;
+                this.color = color;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.brightness = Math.random();
+                this.twinkleSpeed = Math.random() * 0.02;
+                this.trail = [];
+            }
+
+            update() {
+                this.brightness += this.twinkleSpeed;
+                if (this.brightness > 1 || this.brightness < 0) {
+                    this.twinkleSpeed *= -1;
+                }
+
+                if (gravity) {
+                    const dx = centerX - this.x;
+                    const dy = centerY - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const force = 0.5;
+                    this.vx += (dx / dist) * force;
+                    this.vy += (dy / dist) * force;
+                }
+
+                if (rotationSpeed > 0) {
+                    const dx = this.x - centerX;
+                    const dy = this.y - centerY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const a = Math.atan2(dy, dx);
+                    const newAngle = a + rotationSpeed * 0.01;
+                    this.x = centerX + Math.cos(newAngle) * dist;
+                    this.y = centerY + Math.sin(newAngle) * dist;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                this.vx *= 0.99;
+                this.vy *= 0.99;
+
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -0.8;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -0.8;
+
+                if (trails) {
+                    this.trail.push({x: this.x, y: this.y});
+                    if (this.trail.length > 20) this.trail.shift();
+                }
+            }
+
+            draw() {
+                if (trails && this.trail.length > 1) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.trail[0].x, this.trail[0].y);
+                    for (let i = 1; i < this.trail.length; i++) {
+                        ctx.lineTo(this.trail[i].x, this.trail[i].y);
+                    }
+                    ctx.strokeStyle = this.color;
+                    ctx.globalAlpha = 0.3;
+                    ctx.lineWidth = this.size / 2;
+                    ctx.stroke();
+                }
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.brightness;
+                ctx.shadowBlur = this.size * 5;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        class Planet {
+            constructor(x, y, radius, color, orbitRadius, speed, isDraggable = false) {
+                this.centerX = x;
+                this.centerY = y;
+                this.x = isDraggable ? x : x + Math.cos(Math.random() * Math.PI * 2) * orbitRadius;
+                this.y = isDraggable ? y : y + Math.sin(Math.random() * Math.PI * 2) * orbitRadius;
+                this.radius = radius;
+                this.color = color;
+                this.orbitRadius = orbitRadius;
+                this.speed = speed;
+                this.angle = Math.atan2(this.y - y, this.x - x);
+                this.vx = 0;
+                this.vy = 0;
+                this.isDraggable = isDraggable;
+                this.isOrbiting = !isDraggable;
+                this.health = 100;
+                this.moons = [];
+                
+                if (!isDraggable && Math.random() > 0.5) {
+                    const moonCount = Math.floor(Math.random() * 2) + 1;
+                    for (let i = 0; i < moonCount; i++) {
+                        this.moons.push({
+                            radius: radius * 0.3,
+                            orbitRadius: radius * 2 + i * 15,
+                            angle: Math.random() * Math.PI * 2,
+                            speed: speed * 2
+                        });
+                    }
+                }
+            }
+
+            update() {
+                if (this.isOrbiting) {
+                    this.angle += this.speed;
+                    this.x = this.centerX + Math.cos(this.angle) * this.orbitRadius;
+                    this.y = this.centerY + Math.sin(this.angle) * this.orbitRadius;
+
+                    this.moons.forEach(moon => {
+                        moon.angle += moon.speed;
+                    });
+                } else {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.vx *= 0.98;
+                    this.vy *= 0.98;
+
+                    if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            checkCollision(obj, objRadius) {
+                const dx = this.x - obj.x;
+                const dy = this.y - obj.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                return dist < this.radius + objRadius;
+            }
+
+            takeDamage(amount) {
+                this.health -= amount;
+                return this.health <= 0;
+            }
+
+            draw() {
+                if (this.isOrbiting) {
+                    ctx.globalAlpha = 0.2;
+                    ctx.beginPath();
+                    ctx.arc(this.centerX, this.centerY, this.orbitRadius, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(138, 43, 226, 0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+
+                ctx.globalAlpha = 1;
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
+                gradient.addColorStop(0, this.color);
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+                
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                if (this.health < 100) {
+                    ctx.strokeStyle = 'red';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+
+                this.moons.forEach(moon => {
+                    const moonX = this.x + Math.cos(moon.angle) * moon.orbitRadius;
+                    const moonY = this.y + Math.sin(moon.angle) * moon.orbitRadius;
+                    
+                    ctx.beginPath();
+                    ctx.arc(moonX, moonY, moon.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = '#ccc';
+                    ctx.fill();
+                });
+            }
+        }
+
+        class Blackhole {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 30;
+                this.pullRadius = 200;
+                this.pullStrength = 2;
+                this.rotation = 0;
+            }
+
+            update() {
+                this.rotation += 0.05;
+            }
+
+            pull(objects) {
+                objects.forEach(obj => {
+                    const dx = this.x - obj.x;
+                    const dy = this.y - obj.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < this.pullRadius && dist > this.radius) {
+                        const force = this.pullStrength * (1 - dist / this.pullRadius);
+                        obj.vx += (dx / dist) * force;
+                        obj.vy += (dy / dist) * force;
+                    }
+                });
+            }
+
+            consume(obj, objRadius) {
+                const dx = this.x - obj.x;
+                const dy = this.y - obj.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                return dist < this.radius + objRadius;
+            }
+
+            draw() {
+                ctx.globalAlpha = 0.3;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.pullRadius, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(138, 43, 226, 0.5)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                for (let i = 0; i < 3; i++) {
+                    ctx.globalAlpha = 0.5 - i * 0.15;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius + i * 10, 0, Math.PI * 2);
+                    const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius + i * 10);
+                    gradient.addColorStop(0, '#000');
+                    gradient.addColorStop(0.5, '#4B0082');
+                    gradient.addColorStop(1, '#8A2BE2');
+                    ctx.strokeStyle = gradient;
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+
+                ctx.globalAlpha = 1;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#000';
+                ctx.shadowBlur = 40;
+                ctx.shadowColor = '#8A2BE2';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                for (let i = 0; i < 5; i++) {
+                    const angle = this.rotation + (i * Math.PI * 2 / 5);
+                    const startR = this.radius;
+                    const endR = this.radius + 50;
+                    const x1 = this.x + Math.cos(angle) * startR;
+                    const y1 = this.y + Math.sin(angle) * startR;
+                    const x2 = this.x + Math.cos(angle) * endR;
+                    const y2 = this.y + Math.sin(angle) * endR;
+                    
+                    const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+                    gradient.addColorStop(0, 'rgba(138, 43, 226, 0.8)');
+                    gradient.addColorStop(1, 'rgba(138, 43, 226, 0)');
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.strokeStyle = gradient;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+        }
+
+        class Comet {
+            constructor(x, y, targetX, targetY) {
+                this.x = x;
+                this.y = y;
+                const angle = Math.atan2(targetY - y, targetX - x);
+                const speed = 8 + Math.random() * 4;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.radius = 5 + Math.random() * 5;
+                this.trail = [];
+                this.color = '#00FFFF';
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                this.trail.push({x: this.x, y: this.y});
+                if (this.trail.length > 30) this.trail.shift();
+
+                if (this.x < -50 || this.x > canvas.width + 50 || 
+                    this.y < -50 || this.y > canvas.height + 50) {
+                    return true;
+                }
+                return false;
+            }
+
+            draw() {
+                if (this.trail.length > 1) {
+                    for (let i = 0; i < this.trail.length - 1; i++) {
+                        const alpha = i / this.trail.length;
+                        ctx.globalAlpha = alpha * 0.8;
+                        ctx.beginPath();
+                        ctx.moveTo(this.trail[i].x, this.trail[i].y);
+                        ctx.lineTo(this.trail[i + 1].x, this.trail[i + 1].y);
+                        ctx.strokeStyle = this.color;
+                        ctx.lineWidth = this.radius * (alpha + 0.2);
+                        ctx.stroke();
+                    }
+                }
+
+                ctx.globalAlpha = 1;
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
+                gradient.addColorStop(0, '#FFFFFF');
+                gradient.addColorStop(0.5, this.color);
+                gradient.addColorStop(1, 'rgba(0, 255, 255, 0)');
+                
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        class Explosion {
+            constructor(x, y, size) {
+                this.x = x;
+                this.y = y;
+                this.particles = [];
+                for (let i = 0; i < 20; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 2 + Math.random() * 4;
+                    this.particles.push({
+                        x: x,
+                        y: y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        size: Math.random() * size,
+                        life: 1
+                    });
+                }
+            }
+
+            update() {
+                this.particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life -= 0.02;
+                });
+                return this.particles.every(p => p.life <= 0);
+            }
+
+            draw() {
+                this.particles.forEach(p => {
+                    if (p.life > 0) {
+                        ctx.globalAlpha = p.life;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fillStyle = '#FF4500';
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = '#FF4500';
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                    }
+                });
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        function initStars(count) {
+            stars = [];
+            for (let i = 0; i < count; i++) {
+                stars.push(new Star(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height,
+                    starSize,
+                    starColor
+                ));
+            }
+        }
+
+        function animate() {
+            const now = Date.now();
+            fps = Math.round(1000 / (now - lastTime));
+            lastTime = now;
+            document.getElementById('fps').textContent = fps;
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            stars.forEach(star => {
+                star.update();
+                star.draw();
+            });
+
+            blackholes.forEach(bh => {
+                bh.update();
+                bh.pull(stars);
+                bh.pull(planets.filter(p => p.isDraggable));
+                bh.pull(comets);
+                bh.draw();
+            });
+
+            stars = stars.filter(star => {
+                return !blackholes.some(bh => bh.consume(star, star.size));
+            });
+
+            planets = planets.filter((planet, pIdx) => {
+                const outOfBounds = planet.update();
+                if (outOfBounds) return false;
+
+                const consumed = blackholes.some(bh => bh.consume(planet, planet.radius));
+                if (consumed) {
+                    explosions.push(new Explosion(planet.x, planet.y, planet.radius));
+                    return false;
+                }
+
+                for (let i = pIdx + 1; i < planets.length; i++) {
+                    const other = planets[i];
+                    if (planet.checkCollision(other, other.radius)) {
+                        if (planet.isDraggable && Math.abs(planet.vx) + Math.abs(planet.vy) > 2) {
+                            if (other.takeDamage(50)) {
+                                explosions.push(new Explosion(other.x, other.y, other.radius));
+                                planets.splice(i, 1);
+                                i--;
+                            }
+                        }
+                    }
+                }
+
+                comets.forEach((comet, cIdx) => {
+                    if (planet.checkCollision(comet, comet.radius)) {
+                        if (planet.takeDamage(30)) {
+                            explosions.push(new Explosion(planet.x, planet.y, planet.radius));
+                            planets = planets.filter(p => p !== planet);
+                        }
+                        explosions.push(new Explosion(comet.x, comet.y, comet.radius));
+                        comets.splice(cIdx, 1);
+                    }
+                });
+
+                return true;
+            });
+
+            if (showPlanets || planets.some(p => p.isDraggable)) {
+                planets.forEach(planet => planet.draw());
+            }
+
+            comets = comets.filter((comet) => {
+                const outOfBounds = comet.update();
+                if (outOfBounds) return false;
+
+                const consumed = blackholes.some(bh => bh.consume(comet, comet.radius));
+                if (consumed) {
+                    explosions.push(new Explosion(comet.x, comet.y, comet.radius));
+                    return false;
+                }
+
+                comet.draw();
+                return true;
+            });
+
+            explosions = explosions.filter(exp => {
+                const done = exp.update();
+                exp.draw();
+                return !done;
+            });
+
+            document.getElementById('totalStars').textContent = stars.length;
+            document.getElementById('totalPlanets').textContent = planets.length;
+            document.getElementById('totalBlackholes').textContent = blackholes.length;
+            document.getElementById('totalComets').textContent = comets.length;
+
+            requestAnimationFrame(animate);
+        }
+
+        function setMode(newMode) {
+            mode = newMode;
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            const modeBtn = document.getElementById(newMode + 'Mode');
+            if (modeBtn) modeBtn.classList.add('active');
+            
+            const modeNames = {
+                create: 'ÉTOILE',
+                move: 'DÉPLACER',
+                delete: 'SUPPRIMER',
+                planet: 'PLANÈTE',
+                blackhole: 'TROU NOIR',
+                comet: 'COMÈTE'
+            };
+            document.getElementById('currentMode').textContent = modeNames[newMode] || newMode.toUpperCase();
+        }
+
+        function togglePanel() {
+            panelOpen = !panelOpen;
+            const panel = document.getElementById('controlPanel');
+            const stats = document.getElementById('statsPanel');
+            const toggleBtn = document.getElementById('toggleBtn');
+            
+            panel.classList.toggle('hidden');
+            stats.classList.toggle('hidden');
+            toggleBtn.classList.toggle('panel-open');
+        }
+
+        function hideAllUI() {
+            uiVisible = !uiVisible;
+            const ui = document.querySelectorAll('.control-panel, .stats-panel, .instructions, .hide-ui-btn, .toggle-btn');
+            const indicator = document.getElementById('showIndicator');
+            
+            ui.forEach(el => {
+                el.style.display = uiVisible ? '' : 'none';
+            });
+
+            if (!uiVisible) {
+                indicator.classList.add('visible');
+                setTimeout(() => {
+                    indicator.classList.remove('visible');
+                }, 3000);
+            }
+        }
+
+        function toggleGravity() {
+            gravity = !gravity;
+            const btn = document.getElementById('gravityBtn');
+            btn.textContent = 'Gravité: ' + (gravity ? 'ON' : 'OFF');
+            btn.classList.toggle('active');
+        }
+
+        function toggleTrails() {
+            trails = !trails;
+            const btn = document.getElementById('trailsBtn');
+            btn.textContent = 'Traînées: ' + (trails ? 'ON' : 'OFF');
+            btn.classList.toggle('active');
+        }
+
+        function togglePlanets() {
+            showPlanets = !showPlanets;
+            const btn = document.getElementById('planetsBtn');
+            btn.textContent = 'Planètes: ' + (showPlanets ? 'ON' : 'OFF');
+            btn.classList.toggle('active');
+            
+            if (showPlanets && planets.length === 0) {
+                createSolarSystem();
+            }
+        }
+
+        function createExplosion() {
+            const count = 100;
+            for (let i = 0; i < count; i++) {
+                const angle = (Math.PI * 2 * i) / count;
+                const speed = 5 + Math.random() * 5;
+                const star = new Star(centerX, centerY, starSize, starColor);
+                star.vx = Math.cos(angle) * speed;
+                star.vy = Math.sin(angle) * speed;
+                stars.push(star);
+            }
+        }
+
+        function createSpiral() {
+            const count = 200;
+            for (let i = 0; i < count; i++) {
+                const angle = i * 0.5;
+                const radius = i * 2;
+                const x = centerX + Math.cos(angle) * radius;
+                const y = centerY + Math.sin(angle) * radius;
+                stars.push(new Star(x, y, starSize, starColor));
+            }
+        }
+
+        function createGalaxy() {
+            stars = [];
+            const arms = 3;
+            const starsPerArm = 150;
+            for (let arm = 0; arm < arms; arm++) {
+                for (let i = 0; i < starsPerArm; i++) {
+                    const angle = (arm * Math.PI * 2 / arms) + (i * 0.1);
+                    const radius = i * 3;
+                    const x = centerX + Math.cos(angle) * radius;
+                    const y = centerY + Math.sin(angle) * radius;
+                    const star = new Star(x, y, starSize * (1 + Math.random()), starColor);
+                    star.vx = -Math.sin(angle) * 2;
+                    star.vy = Math.cos(angle) * 2;
+                    stars.push(star);
+                }
+            }
+        }
+
+        function createSolarSystem() {
+            planets = [];
+            const sunX = centerX;
+            const sunY = centerY;
+            
+            stars.push(new Star(sunX, sunY, 20, '#FDB813'));
+            
+            const planetData = [
+                { radius: 8, color: '#8C7853', orbit: 80, speed: 0.02 },
+                { radius: 12, color: '#FFC649', orbit: 120, speed: 0.015 },
+                { radius: 13, color: '#4169E1', orbit: 160, speed: 0.012 },
+                { radius: 10, color: '#CD5C5C', orbit: 200, speed: 0.01 },
+                { radius: 25, color: '#DAA520', orbit: 280, speed: 0.008 },
+                { radius: 22, color: '#F4A460', orbit: 350, speed: 0.006 },
+                { radius: 18, color: '#4682B4', orbit: 420, speed: 0.004 },
+                { radius: 17, color: '#1E90FF', orbit: 480, speed: 0.003 }
+            ];
+
+            planetData.forEach(data => {
+                planets.push(new Planet(sunX, sunY, data.radius, data.color, data.orbit, data.speed));
+            });
+
+            showPlanets = true;
+            document.getElementById('planetsBtn').classList.add('active');
+            document.getElementById('planetsBtn').textContent = 'Planètes: ON';
+        }
+
+        function resetStars() {
+            initStars(500);
+            planets = [];
+            blackholes = [];
+            comets = [];
+            explosions = [];
+            gravity = false;
+            trails = false;
+            showPlanets = false;
+            rotationSpeed = 1;
+            document.getElementById('gravityBtn').classList.remove('active');
+            document.getElementById('trailsBtn').classList.remove('active');
+            document.getElementById('planetsBtn').classList.remove('active');
+            document.getElementById('gravityBtn').textContent = 'Gravité: OFF';
+            document.getElementById('trailsBtn').textContent = 'Traînées: OFF';
+            document.getElementById('planetsBtn').textContent = 'Planètes: OFF';
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const panel = document.getElementById('controlPanel');
+            const rect = panel.getBoundingClientRect();
+            
+            if (e.clientX >= rect.left && e.clientX <= rect.right &&
+                e.clientY >= rect.top && e.clientY <= rect.bottom &&
+                !panel.classList.contains('hidden')) {
+                isDraggingPanel = true;
+                panelOffsetX = e.clientX - rect.left;
+                panelOffsetY = e.clientY - rect.top;
+                panel.classList.add('dragging');
+                return;
+            }
+
+            mouseDown = true;
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            dragStartX = mouseX;
+            dragStartY = mouseY;
+            handleClick(e);
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (isDraggingPanel) {
+                const panel = document.getElementById('controlPanel');
+                panel.classList.remove('dragging');
+                isDraggingPanel = false;
+                return;
+            }
+
+            if (mode === 'move' && selectedObject) {
+                const dx = e.clientX - dragStartX;
+                const dy = e.clientY - dragStartY;
+                const speed = Math.sqrt(dx * dx + dy * dy) / 20;
+                
+                if (selectedObject.isDraggable !== undefined) {
+                    selectedObject.vx = dx / 10;
+                    selectedObject.vy = dy / 10;
+                }
+            }
+            mouseDown = false;
+            selectedObject = null;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDraggingPanel) {
+                const panel = document.getElementById('controlPanel');
+                panelX = e.clientX - panelOffsetX;
+                panelY = e.clientY - panelOffsetY;
+                
+                panelX = Math.max(0, Math.min(panelX, window.innerWidth - panel.offsetWidth));
+                panelY = Math.max(0, Math.min(panelY, window.innerHeight - panel.offsetHeight));
+                
+                panel.style.left = panelX + 'px';
+                panel.style.top = panelY + 'px';
+                return;
+            }
+
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+
+            if (mouseDown && mode === 'create') {
+                stars.push(new Star(mouseX, mouseY, starSize, starColor));
+            }
+
+            if (selectedObject && mode === 'move') {
+                selectedObject.x = mouseX;
+                selectedObject.y = mouseY;
+            }
+        });
+
+        function handleClick(e) {
+            const x = e.clientX;
+            const y = e.clientY;
+
+            if (mode === 'create') {
+                stars.push(new Star(x, y, starSize, starColor));
+            } else if (mode === 'planet') {
+                const colors = ['#8C7853', '#FFC649', '#4169E1', '#CD5C5C', '#DAA520', '#F4A460'];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                const radius = 10 + Math.random() * 15;
+                planets.push(new Planet(x, y, radius, color, 0, 0, true));
+            } else if (mode === 'blackhole') {
+                blackholes.push(new Blackhole(x, y));
+            } else if (mode === 'comet') {
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 500;
+                const startX = x + Math.cos(angle) * distance;
+                const startY = y + Math.sin(angle) * distance;
+                comets.push(new Comet(startX, startY, x, y));
+            } else if (mode === 'move') {
+                selectedObject = [...stars, ...planets, ...blackholes].find(obj => {
+                    const dist = Math.sqrt((obj.x - x) ** 2 + (obj.y - y) ** 2);
+                    const size = obj.radius || obj.size || 10;
+                    return dist < size + 10;
+                });
+            } else if (mode === 'delete') {
+                stars = stars.filter(star => {
+                    const dist = Math.sqrt((star.x - x) ** 2 + (star.y - y) ** 2);
+                    return dist > star.size + 10;
+                });
+                planets = planets.filter(planet => {
+                    const dist = Math.sqrt((planet.x - x) ** 2 + (planet.y - y) ** 2);
+                    if (dist < planet.radius + 10) {
+                        explosions.push(new Explosion(planet.x, planet.y, planet.radius));
+                        return false;
+                    }
+                    return true;
+                });
+                blackholes = blackholes.filter(bh => {
+                    const dist = Math.sqrt((bh.x - x) ** 2 + (bh.y - y) ** 2);
+                    return dist > bh.radius + 10;
+                });
+                comets = comets.filter(comet => {
+                    const dist = Math.sqrt((comet.x - x) ** 2 + (comet.y - y) ** 2);
+                    return dist > comet.radius + 10;
+                });
+            }
+        }
+
+        document.getElementById('toggleBtn').addEventListener('click', togglePanel);
+        document.getElementById('hideBtn').addEventListener('click', hideAllUI);
+        document.getElementById('createMode').addEventListener('click', () => setMode('create'));
+        document.getElementById('moveMode').addEventListener('click', () => setMode('move'));
+        document.getElementById('deleteMode').addEventListener('click', () => setMode('delete'));
+        document.getElementById('planetMode').addEventListener('click', () => setMode('planet'));
+        document.getElementById('blackholeMode').addEventListener('click', () => setMode('blackhole'));
+        document.getElementById('cometMode').addEventListener('click', () => setMode('comet'));
+        document.getElementById('gravityBtn').addEventListener('click', toggleGravity);
+        document.getElementById('trailsBtn').addEventListener('click', toggleTrails);
+        document.getElementById('planetsBtn').addEventListener('click', togglePlanets);
+        document.getElementById('explosionBtn').addEventListener('click', createExplosion);
+        document.getElementById('spiralBtn').addEventListener('click', createSpiral);
+        document.getElementById('galaxyBtn').addEventListener('click', createGalaxy);
+        document.getElementById('solarBtn').addEventListener('click', createSolarSystem);
+        document.getElementById('resetBtn').addEventListener('click', resetStars);
+
+        document.getElementById('starCount').addEventListener('input', (e) => {
+            document.getElementById('starCountValue').textContent = e.target.value;
+            initStars(parseInt(e.target.value));
+        });
+
+        document.getElementById('starSize').addEventListener('input', (e) => {
+            starSize = parseFloat(e.target.value);
+            document.getElementById('sizeValue').textContent = e.target.value;
+        });
+
+        document.getElementById('rotationSpeed').addEventListener('input', (e) => {
+            rotationSpeed = parseFloat(e.target.value);
+            document.getElementById('speedValue').textContent = e.target.value;
+        });
+
+        document.getElementById('starColor').addEventListener('change', (e) => {
+            starColor = e.target.value;
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'h' || e.key === 'H') {
+                hideAllUI();
+            }
+            if (e.key === 'c' || e.key === 'C') {
+                setMode('create');
+            }
+            if (e.key === 'm' || e.key === 'M') {
+                setMode('move');
+            }
+            if (e.key === 'd' || e.key === 'D') {
+                setMode('delete');
+            }
+            if (e.key === 'g' || e.key === 'G') {
+                toggleGravity();
+            }
+            if (e.key === 't' || e.key === 'T') {
+                toggleTrails();
+            }
+            if (e.key === 'p' || e.key === 'P') {
+                togglePlanets();
+            }
+            if (e.key === 'r' || e.key === 'R') {
+                resetStars();
+            }
+            if (e.key === ' ') {
+                e.preventDefault();
+                createExplosion();
+            }
+        });
+
+        canvas.addEventListener('dblclick', () => {
+            if (!uiVisible) {
+                hideAllUI();
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            centerX = canvas.width / 2;
+            centerY = canvas.height / 2;
+        });
+
+        initStars(500);
+        animate();
+    </script>
+</body>
+</html>
